@@ -29,6 +29,7 @@ const BALL_VEL: f32 = 6.5;
 const Player = struct {
     pos: v2,
     size: v2 = PLAYER_SIZE,
+    score: u32 = 0,
     color: rl.Color = .black,
     keys: Keys,
 
@@ -72,7 +73,7 @@ const Player = struct {
 const Ball = struct {
     pos: v2 = BALL_START_POS,
     rad: f32 = BALL_RAD,
-    vel: v2 = v2.init(1, -BALL_VEL),
+    vel: v2 = v2.init(BALL_VEL, -BALL_VEL),
     color: rl.Color = .black,
 
     fn draw(self: Ball) void {
@@ -92,17 +93,18 @@ const Ball = struct {
         self.vel = v2.subtract(w, u);
     }
 
-    fn update(self: *Ball) void {
+    fn update(self: *Ball) Game.Scored {
         if (self.pos.y < self.rad) {
             self.bounce(v2.init(0, 1));
         } else if (self.pos.y > SCREEN_HEIGHT - self.rad) {
             self.bounce(v2.init(0, -1));
-        } else if (self.pos.x > SCREEN_WIDTH) {
-            print("Player 1 scores\n", .{});
-        } else {
-            print("Player 2 scores\n", .{});
+        } else if (self.pos.x > SCREEN_WIDTH - self.rad) {
+            return .PLAYER_1_SCORE;
+        } else if (self.pos.x < self.rad) {
+            return .PLAYER_2_SCORE;
         }
         self.pos = v2.add(self.pos, self.vel);
+        return .NO_SCORE;
     }
 };
 
@@ -110,27 +112,30 @@ const Game = struct {
     players: [2]Player,
     ball: Ball,
 
+    const Scored = enum {
+        NO_SCORE,
+        PLAYER_1_SCORE,
+        PLAYER_2_SCORE,
+    };
+
     fn init() Game {
         print("Game Created!\n", .{});
         return Game{
-            .players = .{
-                .{
-                    .pos = PLAYER_1_START_POS,
-                    .keys = .{
-                        .key_up = Key.w,
-                        .key_down = Key.s,
-                    },
-                },
-                .{
-                    .pos = PLAYER_2_START_POS,
-                    .keys = .{
-                        .key_up = Key.up,
-                        .key_down = Key.down,
-                    },
-                },
-            },
+            .players = .{ .{
+                .pos = PLAYER_1_START_POS,
+                .keys = .{ .key_up = Key.w, .key_down = Key.s },
+            }, .{
+                .pos = PLAYER_2_START_POS,
+                .keys = .{ .key_up = Key.up, .key_down = Key.down },
+            } },
             .ball = .{},
         };
+    }
+
+    fn reset(self: *Game) void {
+        self.players[0].pos = PLAYER_1_START_POS;
+        self.players[1].pos = PLAYER_2_START_POS;
+        self.ball.pos = BALL_START_POS;
     }
 
     //need to have self: *_ to be able to mutate
@@ -138,7 +143,21 @@ const Game = struct {
         for (&self.players) |*player| {
             player.update();
         }
-        self.ball.update();
+        _ = switch (self.ball.update()) {
+            Game.Scored.PLAYER_1_SCORE => {
+                self.players[0].score += 1;
+                self.reset();
+            },
+            Game.Scored.PLAYER_2_SCORE => {
+                self.players[1].score += 1;
+                self.reset();
+            },
+            Game.Scored.NO_SCORE => undefined,
+        };
+        print(
+            "[SCORE] P1: {any} - P2: {any}\n",
+            .{ self.players[0].score, self.players[1].score },
+        );
     }
 
     fn render(self: Game) void {
