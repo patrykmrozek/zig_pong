@@ -122,7 +122,7 @@ const Game = struct {
 
     fn resolveCollision(self: *Game, p: Player) void {
         var b: *Ball = &self.ball;
-        //b vs p2 (r)
+        //b vs p1 (l)
         if (p.pos.x < SCREEN_WIDTH / 2) { // passes into p1 domain
             if (b.pos.x - b.rad < p.pos.x + p.size.x) { // if it has reached the y plane of p1
                 if ((b.pos.y - b.rad <= p.pos.y + p.size.y) and
